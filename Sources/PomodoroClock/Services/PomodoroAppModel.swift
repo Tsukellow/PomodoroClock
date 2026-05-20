@@ -206,6 +206,12 @@ final class PomodoroAppModel: ObservableObject {
     }
 
     private func persistCurrentRoundIfNeeded(completed: Bool) {
+        guard self.round == .focus else {
+            self.activeRoundStartedAt = nil
+            self.engine.reset()
+            self.isRunning = false
+            return
+        }
         guard self.elapsedSeconds > 0, let startedAt = self.activeRoundStartedAt else {
             self.activeRoundStartedAt = nil
             self.engine.reset()
@@ -343,7 +349,6 @@ final class PomodoroAppModel: ObservableObject {
 
         UserDefaults.standard.set(true, forKey: migratedKey)
     }
-
     // MARK: - Manual Focus Sessions
 
     private func addManualFocusSessions(count: Int, on date: Date) {
