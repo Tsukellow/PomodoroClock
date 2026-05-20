@@ -48,7 +48,6 @@ final class PomodoroAppModel: ObservableObject {
             self?.handleRoundCompletion(skipped: false, keepCurrentRound: false)
         }
 
-        self.migrateLegacyTodayAdjustmentIfNeeded()
         self.reloadHistory()
         self.refreshNotifications()
         self.engine.configure(totalSeconds: self.round.durationMinutes(using: self.settings) * 60)
@@ -58,21 +57,14 @@ final class PomodoroAppModel: ObservableObject {
         max(0, self.totalSeconds - self.elapsedSeconds)
     }
 
-    var progressFraction: Double {
-        guard self.totalSeconds > 0 else {
-            return 0
-        }
-        return Double(self.elapsedSeconds) / Double(self.totalSeconds)
-    }
-
     var focusSessionLabel: String {
         let sequence = self.settings.sessionSequence
         let totalFocus = sequence.filter { $0 == .focus }.count
         if self.cycleCompleted {
             return "\(totalFocus)/\(totalFocus)"
         }
-        let completedFocus = sequence.prefix(self.currentSessionIndex + 1).filter { $0 == .focus }.count
-        return "\(completedFocus)/\(totalFocus)"
+        let currentFocusOrdinal = sequence.prefix(self.currentSessionIndex + 1).filter { $0 == .focus }.count
+        return "\(currentFocusOrdinal)/\(totalFocus)"
     }
 
     var remainingFraction: Double {
@@ -274,9 +266,6 @@ final class PomodoroAppModel: ObservableObject {
 
     // MARK: - Manual Focus Sessions
 
-    private static let adjustmentKey = "pomodoroClock.sessionAdjustment"
-    private static let adjustmentDateKey = "pomodoroClock.sessionAdjustmentDate"
-
     private func addManualFocusSessions(count: Int) {
         guard count > 0 else { return }
 
@@ -325,32 +314,4 @@ final class PomodoroAppModel: ObservableObject {
         self.reloadHistory()
     }
 
-    private func migrateLegacyTodayAdjustmentIfNeeded() {
-        let defaults = UserDefaults.standard
-        let storedDate = defaults.string(forKey: Self.adjustmentDateKey) ?? ""
-
-        guard storedDate == Self.todayDateString() else {
-            self.clearLegacyTodayAdjustment()
-            return
-        }
-
-        let adjustment = defaults.integer(forKey: Self.adjustmentKey)
-        if adjustment > 0 {
-            self.addManualFocusSessions(count: adjustment)
-        }
-
-        self.clearLegacyTodayAdjustment()
-    }
-
-    private func clearLegacyTodayAdjustment() {
-        let defaults = UserDefaults.standard
-        defaults.removeObject(forKey: Self.adjustmentKey)
-        defaults.removeObject(forKey: Self.adjustmentDateKey)
-    }
-
-    private static func todayDateString() -> String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy-MM-dd"
-        return formatter.string(from: Date())
-    }
 }

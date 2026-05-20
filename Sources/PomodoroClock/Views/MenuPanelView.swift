@@ -27,10 +27,8 @@ struct MenuPanelView: View {
             ZStack {
                 TimerRingView(
                     remainingFraction: self.model.cycleCompleted ? 1.0 : self.model.remainingFraction,
-                    isPaused: false,
                     ringColor: self.ringColor,
-                    lineWidth: 6,
-                    pauseIconSize: 24
+                    lineWidth: 6
                 )
 
                 if self.model.cycleCompleted {

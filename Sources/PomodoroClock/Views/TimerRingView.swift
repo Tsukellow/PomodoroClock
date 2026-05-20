@@ -4,10 +4,8 @@ import SwiftUI
 struct TimerRingView: View {
     /// Fraction of time remaining (1.0 = full, 0.0 = empty).
     let remainingFraction: Double
-    let isPaused: Bool
     var ringColor: Color = .accentColor
     var lineWidth: CGFloat = 4.0
-    var pauseIconSize: CGFloat = 16
 
     var body: some View {
         let clamped = min(max(remainingFraction, 0), 1)
@@ -26,24 +24,6 @@ struct TimerRingView: View {
                 )
                 .foregroundStyle(ringColor)
                 .rotationEffect(.degrees(-90))
-
-            // Pause icon overlay
-            if isPaused {
-                HStack(spacing: pauseIconSize * 0.25) {
-                    RoundedRectangle(cornerRadius: 1)
-                        .frame(
-                            width: pauseIconSize * 0.25,
-                            height: pauseIconSize * 0.6
-                        )
-                    RoundedRectangle(cornerRadius: 1)
-                        .frame(
-                            width: pauseIconSize * 0.25,
-                            height: pauseIconSize * 0.6
-                        )
-                }
-                .foregroundStyle(ringColor)
-                .opacity(0.7)
-            }
         }
     }
 }
