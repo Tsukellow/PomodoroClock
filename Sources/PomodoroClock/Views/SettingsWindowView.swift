@@ -55,12 +55,41 @@ struct SettingsWindowView: View {
                                         .foregroundStyle(.secondary)
                                 }
                                 .buttonStyle(.plain)
+                                .disabled(self.model.statistics.todayFocusSessions <= 0)
 
                                 Text("\(self.model.statistics.todayFocusSessions) \(self.model.statistics.todayFocusSessions == 1 ? "session" : "sessions")")
                                     .foregroundStyle(.secondary)
 
                                 Button {
                                     self.model.adjustTodaySessions(by: 1)
+                                } label: {
+                                    Image(systemName: "plus.circle")
+                                        .foregroundStyle(.secondary)
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        }
+
+                        Divider()
+
+                        HStack {
+                            Text("Yesterday")
+                            Spacer()
+                            HStack(spacing: 6) {
+                                Button {
+                                    self.model.adjustYesterdaySessions(by: -1)
+                                } label: {
+                                    Image(systemName: "minus.circle")
+                                        .foregroundStyle(.secondary)
+                                }
+                                .buttonStyle(.plain)
+                                .disabled(self.model.statistics.yesterdayFocusSessions <= 0)
+
+                                Text("\(self.model.statistics.yesterdayFocusSessions) \(self.model.statistics.yesterdayFocusSessions == 1 ? "session" : "sessions")")
+                                    .foregroundStyle(.secondary)
+
+                                Button {
+                                    self.model.adjustYesterdaySessions(by: 1)
                                 } label: {
                                     Image(systemName: "plus.circle")
                                         .foregroundStyle(.secondary)

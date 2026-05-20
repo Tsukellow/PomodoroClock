@@ -49,6 +49,7 @@ final class PomodoroAppModel: ObservableObject {
         }
 
         self.reloadHistory()
+        self.migrateHistoryV1()
         self.refreshNotifications()
         self.engine.configure(totalSeconds: self.round.durationMinutes(using: self.settings) * 60)
     }
@@ -73,10 +74,19 @@ final class PomodoroAppModel: ObservableObject {
     }
 
     func adjustTodaySessions(by delta: Int) {
+        self.adjustSessions(by: delta, on: Date())
+    }
+
+    func adjustYesterdaySessions(by delta: Int) {
+        guard let yesterday = calendar.date(byAdding: .day, value: -1, to: Date()) else { return }
+        self.adjustSessions(by: delta, on: yesterday)
+    }
+
+    private func adjustSessions(by delta: Int, on date: Date) {
         if delta > 0 {
-            self.addManualFocusSessions(count: delta)
+            self.addManualFocusSessions(count: delta, on: date)
         } else if delta < 0 {
-            self.removeTodayFocusSessions(count: -delta)
+            self.removeFocusSessions(count: -delta, on: date)
         }
     }
 
@@ -195,7 +205,8 @@ final class PomodoroAppModel: ObservableObject {
             endedAt: Date(),
             round: self.round,
             plannedDurationSeconds: self.totalSeconds,
-            completed: completed
+            completed: completed,
+            recordedAt: Date()
         )
 
         self.historyStore.append(record)
@@ -264,24 +275,79 @@ final class PomodoroAppModel: ObservableObject {
         return String(format: "%02d:%02d", minutes, seconds)
     }
 
+    // MARK: - Migration
+
+    private func migrateHistoryV1() {
+        let migratedKey = "pomodoroClock.historyMigratedV1"
+        guard !UserDefaults.standard.bool(forKey: migratedKey) else { return }
+
+        var records = self.historyStore.load()
+        var changed = false
+
+        for i in records.indices {
+            let record = records[i]
+
+            // Fix old manual entries: normalize to midnight, clear duration, preserve original time in recordedAt
+            if record.isManualEntry {
+                let midnight = calendar.startOfDay(for: record.endedAt)
+                let originalRecordedAt = record.recordedAt.timeIntervalSince1970 == 0
+                    ? record.endedAt
+                    : record.recordedAt
+
+                if record.startedAt != midnight || record.endedAt != midnight || record.plannedDurationSeconds != 0 {
+                    records[i] = PomodoroSessionRecord(
+                        id: record.id,
+                        startedAt: midnight,
+                        endedAt: midnight,
+                        round: record.round,
+                        plannedDurationSeconds: 0,
+                        completed: record.completed,
+                        isManualEntry: true,
+                        recordedAt: originalRecordedAt
+                    )
+                    changed = true
+                }
+            } else if record.recordedAt.timeIntervalSince1970 == 0 {
+                // Fix non-manual entries missing recordedAt: set to endedAt
+                records[i] = PomodoroSessionRecord(
+                    id: record.id,
+                    startedAt: record.startedAt,
+                    endedAt: record.endedAt,
+                    round: record.round,
+                    plannedDurationSeconds: record.plannedDurationSeconds,
+                    completed: record.completed,
+                    isManualEntry: false,
+                    recordedAt: record.endedAt
+                )
+                changed = true
+            }
+        }
+
+        if changed {
+            self.historyStore.replace(records)
+            self.reloadHistory()
+        }
+
+        UserDefaults.standard.set(true, forKey: migratedKey)
+    }
+
     // MARK: - Manual Focus Sessions
 
-    private func addManualFocusSessions(count: Int) {
+    private func addManualFocusSessions(count: Int, on date: Date) {
         guard count > 0 else { return }
 
-        let durationSeconds = self.settings.focusMinutes * 60
-        let baseDate = Date()
+        let midnight = calendar.startOfDay(for: date)
         var records = self.historyStore.load()
 
-        for index in 0..<count {
-            let endedAt = baseDate.addingTimeInterval(TimeInterval(index))
+        for _ in 0..<count {
             let record = PomodoroSessionRecord(
-                startedAt: endedAt.addingTimeInterval(TimeInterval(-durationSeconds)),
-                endedAt: endedAt,
+                startedAt: midnight,
+                endedAt: midnight,
                 round: .focus,
-                plannedDurationSeconds: durationSeconds,
+                plannedDurationSeconds: 0,
                 completed: true,
-                isManualEntry: true
+                isManualEntry: true,
+                recordedAt: Date()
             )
             records.append(record)
         }
@@ -290,17 +356,16 @@ final class PomodoroAppModel: ObservableObject {
         self.reloadHistory()
     }
 
-    private func removeTodayFocusSessions(count: Int) {
+    private func removeFocusSessions(count: Int, on date: Date) {
         guard count > 0 else { return }
 
-        let today = Date()
         var records = self.historyStore.load()
         let removableIDs = Set(
             records
                 .filter {
                     $0.completed
                         && $0.round == .focus
-                        && self.calendar.isDate($0.endedAt, inSameDayAs: today)
+                        && self.calendar.isDate($0.endedAt, inSameDayAs: date)
                 }
                 .sorted { $0.endedAt > $1.endedAt }
                 .prefix(count)

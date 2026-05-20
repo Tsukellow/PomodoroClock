@@ -34,6 +34,7 @@ struct MonthlyFocusCount: Identifiable {
 
 struct StatisticsSummary {
     var todayFocusSessions: Int
+    var yesterdayFocusSessions: Int
     var weeklyFocusSessions: Int
     var allTimeFocusSessions: Int
     var lastSevenDays: [DailyFocusCount]
@@ -42,6 +43,7 @@ struct StatisticsSummary {
 
     static let empty = StatisticsSummary(
         todayFocusSessions: 0,
+        yesterdayFocusSessions: 0,
         weeklyFocusSessions: 0,
         allTimeFocusSessions: 0,
         lastSevenDays: [],
@@ -61,6 +63,14 @@ struct StatisticsSummary {
         // Today
         let todayFocusRecords = completedFocusRecords.filter {
             calendar.isDate($0.endedAt, inSameDayAs: now)
+        }
+
+        // Yesterday
+        guard let yesterday = calendar.date(byAdding: .day, value: -1, to: today) else {
+            return .empty
+        }
+        let yesterdayFocusRecords = completedFocusRecords.filter {
+            calendar.isDate($0.endedAt, inSameDayAs: yesterday)
         }
 
         // This week
@@ -83,6 +93,7 @@ struct StatisticsSummary {
 
         return StatisticsSummary(
             todayFocusSessions: todayFocusRecords.count,
+            yesterdayFocusSessions: yesterdayFocusRecords.count,
             weeklyFocusSessions: weekRecords.count,
             allTimeFocusSessions: completedFocusRecords.count,
             lastSevenDays: lastSevenDays,
