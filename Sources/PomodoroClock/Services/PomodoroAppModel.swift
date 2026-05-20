@@ -28,6 +28,7 @@ final class PomodoroAppModel: ObservableObject {
     private let calendar = Calendar.current
     private let engine: CountdownEngine
     private var activeRoundStartedAt: Date?
+    private var dayChangeObserver: NSObjectProtocol?
 
     init() {
         let storedSettings = Self.loadSettings()
@@ -51,6 +52,18 @@ final class PomodoroAppModel: ObservableObject {
         self.reloadHistory()
         self.migrateHistoryV1()
         self.refreshNotifications()
+
+        self.dayChangeObserver = NotificationCenter.default.addObserver(
+            forName: .NSCalendarDayChanged,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            guard let self else { return }
+            MainActor.assumeIsolated {
+                self.reloadHistory()
+            }
+        }
+
         self.engine.configure(totalSeconds: self.round.durationMinutes(using: self.settings) * 60)
     }
 
