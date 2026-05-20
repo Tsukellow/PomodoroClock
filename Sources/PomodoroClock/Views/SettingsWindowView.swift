@@ -34,7 +34,7 @@ struct SettingsWindowView: View {
                 .tag(Tab.settings)
         }
         .padding(20)
-        .frame(width: 450, height: 580)
+        .frame(width: 450, height: 620)
     }
 
     // MARK: - Statistics Tab
