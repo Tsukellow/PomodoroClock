@@ -206,13 +206,11 @@ final class PomodoroAppModel: ObservableObject {
     }
 
     private func persistCurrentRoundIfNeeded(completed: Bool) {
-        guard self.round == .focus else {
-            self.activeRoundStartedAt = nil
-            self.engine.reset()
-            self.isRunning = false
-            return
-        }
-        guard self.elapsedSeconds > 0, let startedAt = self.activeRoundStartedAt else {
+        guard completed,
+              self.round == .focus,
+              self.elapsedSeconds > 0,
+              let startedAt = self.activeRoundStartedAt
+        else {
             self.activeRoundStartedAt = nil
             self.engine.reset()
             self.isRunning = false
@@ -224,7 +222,7 @@ final class PomodoroAppModel: ObservableObject {
             endedAt: Date(),
             round: self.round,
             plannedDurationSeconds: self.totalSeconds,
-            completed: completed,
+            completed: true,
             recordedAt: Date()
         )
 
