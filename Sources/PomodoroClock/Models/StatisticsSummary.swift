@@ -32,6 +32,22 @@ struct MonthlyFocusCount: Identifiable {
     }()
 }
 
+struct WeeklyFocusCount: Identifiable {
+    let id = UUID()
+    let date: Date
+    let completedFocusSessions: Int
+
+    var shortLabel: String {
+        Self.labelFormatter.string(from: self.date)
+    }
+
+    private static let labelFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.setLocalizedDateFormatFromTemplate("M/d")
+        return formatter
+    }()
+}
+
 struct StatisticsSummary {
     var todayFocusSessions: Int
     var yesterdayFocusSessions: Int
@@ -39,6 +55,7 @@ struct StatisticsSummary {
     var allTimeFocusSessions: Int
     var lastSevenDays: [DailyFocusCount]
     var lastThirtyDays: [DailyFocusCount]
+    var lastTwelveWeeks: [WeeklyFocusCount]
     var lastTwelveMonths: [MonthlyFocusCount]
 
     static let empty = StatisticsSummary(
@@ -48,6 +65,7 @@ struct StatisticsSummary {
         allTimeFocusSessions: 0,
         lastSevenDays: [],
         lastThirtyDays: [],
+        lastTwelveWeeks: [],
         lastTwelveMonths: []
     )
 
@@ -88,6 +106,9 @@ struct StatisticsSummary {
         let lastSevenDays = Self.dailyCounts(days: 7, today: today, grouped: grouped, calendar: calendar)
         let lastThirtyDays = Self.dailyCounts(days: 30, today: today, grouped: grouped, calendar: calendar)
 
+        // Weekly grouping for weeks chart
+        let lastTwelveWeeks = Self.weeklyCounts(today: today, grouped: grouped, mondayCalendar: mondayCalendar)
+
         // Monthly grouping for year chart
         let lastTwelveMonths = Self.monthlyCounts(today: today, grouped: grouped, calendar: calendar)
 
@@ -98,6 +119,7 @@ struct StatisticsSummary {
             allTimeFocusSessions: completedFocusRecords.count,
             lastSevenDays: lastSevenDays,
             lastThirtyDays: lastThirtyDays,
+            lastTwelveWeeks: lastTwelveWeeks,
             lastTwelveMonths: lastTwelveMonths
         )
     }
@@ -115,6 +137,29 @@ struct StatisticsSummary {
             return DailyFocusCount(
                 date: date,
                 completedFocusSessions: grouped[date]?.count ?? 0
+            )
+        }
+    }
+
+    private static func weeklyCounts(
+        today: Date,
+        grouped: [Date: [PomodoroSessionRecord]],
+        mondayCalendar: Calendar
+    ) -> [WeeklyFocusCount] {
+        (0..<10).compactMap { offset -> WeeklyFocusCount? in
+            guard let targetDate = mondayCalendar.date(byAdding: .weekOfYear, value: -(9 - offset), to: today) else {
+                return nil
+            }
+            guard let weekStart = mondayCalendar.dateInterval(of: .weekOfYear, for: targetDate)?.start else {
+                return nil
+            }
+            let count = grouped.reduce(0) { total, pair in
+                mondayCalendar.isDate(pair.key, equalTo: weekStart, toGranularity: .weekOfYear)
+                    ? total + pair.value.count : total
+            }
+            return WeeklyFocusCount(
+                date: weekStart,
+                completedFocusSessions: count
             )
         }
     }

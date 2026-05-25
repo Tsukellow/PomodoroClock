@@ -12,9 +12,10 @@ struct SettingsWindowView: View {
     }
 
     enum ChartPeriod: String, CaseIterable {
-        case week = "Week"
-        case month = "Month"
-        case year = "Year"
+        case week = "7D"
+        case month = "30D"
+        case weeks = "10W"
+        case year = "12M"
     }
 
     @State private var selectedTab: Tab = .statistics
@@ -169,7 +170,7 @@ struct SettingsWindowView: View {
                 .foregroundStyle(Color.accentColor)
             }
             .chartYAxis {
-                AxisMarks(preset: .automatic) { _ in
+                AxisMarks(values: .stride(by: 2)) { _ in
                     AxisGridLine()
                     AxisValueLabel()
                 }
@@ -183,9 +184,29 @@ struct SettingsWindowView: View {
                 .foregroundStyle(Color.accentColor)
             }
             .chartXAxis {
-                AxisMarks(values: .stride(by: .day, count: 7)) { _ in
+                AxisMarks(values: self.mondayStrideValues()) { _ in
                     AxisGridLine()
                     AxisValueLabel(format: .dateTime.day().month(.abbreviated))
+                }
+            }
+            .chartYAxis {
+                AxisMarks(values: .stride(by: 2)) { _ in
+                    AxisGridLine()
+                    AxisValueLabel()
+                }
+            }
+        case .weeks:
+            Chart(self.model.statistics.lastTwelveWeeks) { entry in
+                BarMark(
+                    x: .value("Week", entry.shortLabel),
+                    y: .value("Sessions", entry.completedFocusSessions)
+                )
+                .foregroundStyle(Color.accentColor)
+            }
+            .chartYAxis {
+                AxisMarks(values: .stride(by: 5)) { _ in
+                    AxisGridLine()
+                    AxisValueLabel()
                 }
             }
         case .year:
@@ -195,6 +216,12 @@ struct SettingsWindowView: View {
                     y: .value("Sessions", entry.completedFocusSessions)
                 )
                 .foregroundStyle(Color.accentColor)
+            }
+            .chartYAxis {
+                AxisMarks(values: .stride(by: 20)) { _ in
+                    AxisGridLine()
+                    AxisValueLabel()
+                }
             }
         }
     }
@@ -346,6 +373,33 @@ struct SettingsWindowView: View {
                 Color.primary.opacity(0.035),
                 in: RoundedRectangle(cornerRadius: 16, style: .continuous)
             )
+    }
+
+    // MARK: - Chart Helpers
+
+    private func mondayStrideValues() -> [Date] {
+        guard let first = self.model.statistics.lastThirtyDays.first?.date,
+              let last = self.model.statistics.lastThirtyDays.last?.date
+        else { return [] }
+
+        var mondayCalendar = Calendar.current
+        mondayCalendar.firstWeekday = 2
+        mondayCalendar.minimumDaysInFirstWeek = 4
+
+        let weekday = mondayCalendar.component(.weekday, from: first)
+        let daysToMonday = (9 - weekday) % 7
+        guard let startMonday = mondayCalendar.date(byAdding: .day, value: daysToMonday, to: first) else {
+            return []
+        }
+
+        var mondays: [Date] = []
+        var current = startMonday
+        while current <= last {
+            mondays.append(current)
+            guard let next = mondayCalendar.date(byAdding: .day, value: 7, to: current) else { break }
+            current = next
+        }
+        return mondays
     }
 
     // MARK: - Data Helpers
